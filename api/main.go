@@ -2,9 +2,11 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"os"
 
-	"github.com/gofiber/fiber"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 )
 
@@ -20,4 +22,15 @@ func main() {
 	}
 
 	app := fiber.New()
+
+	app.Use(logger.New())
+
+	setupRoutes(app)
+
+	appPort := os.Getenv("APP_PORT")
+
+	a := app.Listen(appPort)
+
+	log.Fatal(a)
+
 }
