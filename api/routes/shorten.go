@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/internal/uuid"
 	"github.com/ichthoth/url-redis/m/database"
 	"github.com/ichthoth/url-redis/m/helpers"
 )
@@ -59,11 +60,42 @@ func ShortenURL(c *fiber.Ctx) error {
 	//check for domain error
 
 	if !helpers.RemoveDomainError(body.URL) {
-		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "invalid url"})
+		return c.Status(fiber.StatusServiceUnavailable).JSON(fiber.Map{"error": "i won't be showing up :)"})
 	}
 
 	//enforce SSL, HTTPS
 	body.URL = helpers.EnforceHTTP(body.URL)
+
+	// check if user has sent a custom short link
+	//if user does not send a custom short link one will be created
+	//for them
+
+	var id string
+	if body.CustomShort == "" {
+		id = uuid.New().String()[:6]
+	} else {
+		id = body.CustomShort
+	}
+	r := database.CreateClient(0)
+	defer r.Close()
+
+	val, _ = r.Get(database.Ctx, id).Result()
+	if val != "" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{
+			"error": "URL short is already in use",
+		})
+	}
+
+	if body.Expiry == 0 {
+		body.Expiry = 24
+	}
+
+	err = r.Set(database.Ctx, id, body.URL, body.Expiry*3600*time.Second).Err()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "unable to connect to server",
+		})
+	}
 
 	r2.Decr(database.Ctx, ip)
 
