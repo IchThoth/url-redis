@@ -1,9 +1,10 @@
-module github.com/ichthoth/url-redis/m
+module github.com/ichthoth/url-redis
 
 go 1.18
 
 require (
 	github.com/gofiber/fiber/v2 v2.38.1
+	github.com/google/uuid v1.3.0
 	github.com/joho/godotenv v1.4.0
 )
 
@@ -14,7 +15,9 @@ require (
 
 require (
 	github.com/andybalholm/brotli v1.0.4 // indirect
+	github.com/asaskevich/govalidator v0.0.0-20230301143203-a9d515a09cc2
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/google/uuid v1.3.0
 	github.com/klauspost/compress v1.15.0 // indirect
 	github.com/valyala/bytebufferpool v1.0.0 // indirect
 	github.com/valyala/fasthttp v1.40.0 // indirect
