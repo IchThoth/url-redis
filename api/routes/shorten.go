@@ -5,11 +5,12 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/asaskevich/govalidator"
 	"github.com/go-redis/redis/v8"
 	"github.com/gofiber/fiber/v2"
-	"github.com/gofiber/fiber/v2/internal/uuid"
-	"github.com/ichthoth/url-redis/m/database"
-	"github.com/ichthoth/url-redis/m/helpers"
+	"github.com/google/uuid"
+	"github.com/ichthoth/url-redis/database"
+	"github.com/ichthoth/url-redis/helpers"
 )
 
 type Request struct {
@@ -21,7 +22,7 @@ type Response struct {
 	URL            string        `json:"url"`
 	CustomShort    string        `json:"short"`
 	Expiry         time.Duration `json:"expiry"`
-	XRateRemaining string        `json:"rate_limit"`
+	XRateRemaining int           `json:"rate_limit"`
 	XRateLimitRest time.Duration `json:"rate_limit_rest"`
 }
 
@@ -41,7 +42,6 @@ func ShortenURL(c *fiber.Ctx) error {
 	if err == redis.Nil {
 		_ = r2.Set(database.Ctx, ip, os.Getenv("API_QUOTA"), 30*60*time.Second).Err()
 	} else {
-		val, _ = r2.Get(database.Ctx, ip).Result()
 		valInt, _ := strconv.Atoi(val)
 		if valInt <= 0 {
 			limit, _ := r2.TTL(database.Ctx, ip).Result()
@@ -53,7 +53,7 @@ func ShortenURL(c *fiber.Ctx) error {
 	}
 
 	// verify if input is a URL
-	if !govalidator.isURL(body.URL) {
+	if !govalidator.IsURL(body.URL) {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "invalid url"})
 	}
 
@@ -97,6 +97,27 @@ func ShortenURL(c *fiber.Ctx) error {
 		})
 	}
 
+	resp := Response{
+		URL:            body.URL,
+		CustomShort:    "",
+		Expiry:         body.Expiry,
+		XRateRemaining: 10,
+		XRateLimitRest: 30,
+	}
+
 	r2.Decr(database.Ctx, ip)
+
+	val, _ = r2.Get(database.Ctx, ip).Result()
+	resp.XRateRemaining, _ = strconv.Atoi(val)
+
+	ttl, err := r2.TTL(database.Ctx, ip).Result()
+	if err != nil {
+		return err
+	}
+	resp.XRateLimitRest = ttl / time.Nanosecond / time.Minute
+
+	resp.CustomShort = os.Getenv("DOMAIN") + id
+
+	return c.Status(fiber.StatusOK).JSON(resp)
 
 }
